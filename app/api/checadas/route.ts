@@ -100,7 +100,50 @@ export async function POST(request: Request) {
         let retardo_minutos = 0
         let turnoSeleccionado: any = null
 
-        const baseDate = timestamp_manual ? new Date(timestamp_manual) : new Date()
+        let baseDate: Date
+        if (timestamp_manual) {
+            // El formato es yyyy-mm-ddThh:mm:ss (local)
+            // Para que JS no lo asuma UTC, lo parseamos como partes
+            const [dPart, tPart] = timestamp_manual.split('T')
+            const [y, m, d] = dPart.split('-').map(Number)
+            const [hh, mm] = tPart.split(':').map(Number)
+            
+            // Creamos una fecha local al servidor pero con los números correctos
+            const localDate = new Date(y, m - 1, d, hh, mm, 0)
+            
+            // Ahora calculamos el offset de la zona horaria destino (ej. Mexico_City)
+            // para convertir esa "hora visual" a un timestamp UTC real
+            const targetTimeZone = timezone
+            const intlOpts: Intl.DateTimeFormatOptions = {
+                timeZone: targetTimeZone,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                second: 'numeric',
+                hour12: false
+            }
+            
+            // Obtenemos la diferencia entre lo que cree el servidor y lo que debería ser en el target
+            const formatter = new Intl.DateTimeFormat('en-US', intlOpts)
+            const parts = formatter.formatToParts(localDate)
+            const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0')
+            
+            const targetDate = new Date(
+                getPart('year'),
+                getPart('month') - 1,
+                getPart('day'),
+                getPart('hour'),
+                getPart('minute'),
+                getPart('second')
+            )
+            
+            const offset = localDate.getTime() - targetDate.getTime()
+            baseDate = new Date(localDate.getTime() + offset)
+        } else {
+            baseDate = new Date()
+        }
 
         // Helpers para tiempo en la zona horaria seleccionada
         const formatter = new Intl.DateTimeFormat('es-MX', {

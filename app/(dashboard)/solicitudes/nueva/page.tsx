@@ -168,6 +168,10 @@ export default function NuevaSolicitudPage() {
                     return now >= earned || (now.getFullYear() === startYear)
                 })
                 setCorrectionPeriods(activeCorrectionPeriods)
+            }
+            
+            setBalanceDisponible(Math.max(0, totalValid))
+            setBalanceExpirado(Math.max(0, totalExpired))
         } else {
             // 2. If no DB balances, calculate theoretical
             let debugInfo = ''

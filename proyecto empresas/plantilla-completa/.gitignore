@@ -34,9 +34,7 @@ yarn-error.log*
 .env*
 
 # vercel
-
-# local project data
-# /proyecto empresas/  <-- SQL scripts now tracked for reference
+.vercel
 
 # typescript
 *.tsbuildinfo

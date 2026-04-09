@@ -50,8 +50,8 @@ export async function POST(request: Request) {
         const { data: emp, error: empError } = await supabase
             .from('empleados')
             .select('id_empleado, nombre, apellido_paterno, apellido_materno, estado_empleado, id_turno')
-            .or(`numero_empleado.eq.${idNumerico},numero_empleado.eq.${id_empleado_token}`)
-            .single()
+            .eq('numero_empleado', idNumerico)
+            .maybeSingle()
 
         if (empError || !emp) {
             return NextResponse.json({ ok: false, error_code: 'ID_INVALIDO', mensaje: 'No se encontró al empleado.' }, { status: 400, headers: corsHeaders })

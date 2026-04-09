@@ -167,13 +167,17 @@ export default function ChecadorKiosko() {
         try {
             // Parseamos a número para asegurar coincidencia con el tipo INT de la DB
             const idNumerico = parseInt(idManual, 10)
+            console.log('--- DEBUG CHECADOR ---')
+            console.log('Buscando ID Manual:', idManual)
+            console.log('ID Numérico parseado:', idNumerico)
 
             // Validar existencia de empleado en BD real
+            // Usamos una consulta más simple y robusta
             const { data: emp, error } = await supabase
                 .from('empleados')
                 .select('id_empleado, nombre, apellido_paterno, apellido_materno, estado_empleado, id_turno')
-                .or(`numero_empleado.eq.${idNumerico},numero_empleado.eq.${idManual}`)
-                .single()
+                .eq('numero_empleado', idNumerico)
+                .maybeSingle()
 
             if (error) {
                 console.error('Error detallado:', error)

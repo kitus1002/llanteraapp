@@ -107,6 +107,8 @@ export function VacationBalanceManager({ idEmpleado, fechaIngreso, isReadOnly = 
                 periodData = newPeriod
             }
 
+            if (!periodData) throw new Error("No se pudo identificar el periodo vacacional.")
+
             // 3. Create the balance record in vacaciones_saldos
             const { error: insertError } = await supabase.from('vacaciones_saldos').insert([{
                 id_empleado: idEmpleado,

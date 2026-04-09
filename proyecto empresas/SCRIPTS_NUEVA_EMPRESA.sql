@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS cat_cecos (
 
 CREATE TABLE IF NOT EXISTS cat_tipos_rol (
     id_tipo_rol UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tipo_rol TEXT NOT NULL, -- "20x10", "14x7"
+    tipo_rol TEXT UNIQUE NOT NULL, -- "20x10", "14x7"
     dias_trabajo INT NOT NULL,
     dias_descanso INT NOT NULL,
     descripcion TEXT,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS cat_tipos_solicitud (
 
 CREATE TABLE IF NOT EXISTS cat_periodos_vacacionales (
     id_periodo UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    periodo TEXT NOT NULL, -- "2025-2026"
+    periodo TEXT UNIQUE NOT NULL, -- "2025-2026"
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE NOT NULL,
     activo BOOLEAN DEFAULT TRUE
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS cat_periodos_vacacionales (
 
 CREATE TABLE IF NOT EXISTS cat_causas_baja (
     id_causa_baja UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    causa TEXT NOT NULL,
+    causa TEXT UNIQUE NOT NULL,
     requiere_evidencia BOOLEAN DEFAULT FALSE,
     rol_iniciador TEXT DEFAULT 'Jefe',
     activo BOOLEAN DEFAULT TRUE
@@ -150,6 +150,11 @@ CREATE TABLE IF NOT EXISTS empleado_salarios (
     salario_diario NUMERIC(10,2) NOT NULL,
     motivo TEXT
 );
+
+-- Asegurar relación correcta (Fix para instalaciones previas inconsistentes)
+ALTER TABLE empleado_salarios DROP CONSTRAINT IF EXISTS empleado_salarios_id_empleado_fkey;
+ALTER TABLE empleado_salarios ADD CONSTRAINT empleado_salarios_id_empleado_fkey 
+    FOREIGN KEY (id_empleado) REFERENCES empleados(id_empleado) ON DELETE CASCADE;
 
 CREATE TABLE IF NOT EXISTS empleado_roles (
     id_empleado_rol UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -267,6 +272,10 @@ CREATE POLICY "Admins can all" ON perfiles FOR ALL USING (
 );
 
 -- Tablas Relacionales Empleados (Acceso Autenticado)
+ALTER TABLE empleado_ingreso ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated All" ON empleado_ingreso;
+CREATE POLICY "Authenticated All" ON empleado_ingreso FOR ALL USING (true);
+
 ALTER TABLE empleado_domicilio ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated All" ON empleado_domicilio;
 CREATE POLICY "Authenticated All" ON empleado_domicilio FOR ALL USING (true);
@@ -290,6 +299,26 @@ CREATE POLICY "Authenticated All" ON empleado_incidencias FOR ALL USING (true);
 ALTER TABLE vacaciones_saldos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated All" ON vacaciones_saldos;
 CREATE POLICY "Authenticated All" ON vacaciones_saldos FOR ALL USING (true);
+
+ALTER TABLE empleado_adscripciones ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated All" ON empleado_adscripciones;
+CREATE POLICY "Authenticated All" ON empleado_adscripciones FOR ALL USING (true);
+
+ALTER TABLE bajas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated All" ON bajas;
+CREATE POLICY "Authenticated All" ON bajas FOR ALL USING (true);
+
+ALTER TABLE auditoria ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated All" ON auditoria;
+CREATE POLICY "Authenticated All" ON auditoria FOR ALL USING (true);
+
+ALTER TABLE solicitud_aprobaciones ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated All" ON solicitud_aprobaciones;
+CREATE POLICY "Authenticated All" ON solicitud_aprobaciones FOR ALL USING (true);
+
+ALTER TABLE cat_periodos_vacacionales ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public Read" ON cat_periodos_vacacionales;
+CREATE POLICY "Public Read" ON cat_periodos_vacacionales FOR SELECT USING (true);
 
 ALTER TABLE cat_tipos_incidencia ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public Read" ON cat_tipos_incidencia;

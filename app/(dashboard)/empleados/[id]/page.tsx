@@ -17,6 +17,8 @@ export default function EmpleadoDetallePage() {
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState('perfil')
     const [isEditing, setIsEditing] = useState(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
+    const [saving, setSaving] = useState(false)
 
     // Edit Modal State
     const [editTab, setEditTab] = useState('personal')
@@ -309,6 +311,8 @@ export default function EmpleadoDetallePage() {
     }
 
     async function handleUpdate() {
+        setSaving(true)
+        setSaveError(null)
         try {
             // 1. Update Main Employee Table
             const { error: empError } = await supabase
@@ -357,15 +361,31 @@ export default function EmpleadoDetallePage() {
                 estado: editForm.estado
             }
             const { error: domError } = await supabase.from('empleado_domicilio').upsert(domicilioData)
-            if (domError) console.error("Error domicilio:", domError)
+            if (domError) throw new Error("Error domicilio: " + domError.message)
 
-            // 3. Upsert Ingreso (Only if editing allowed, rarely changes unless rehire)
+            // 3. Upsert Ingreso — Try both INSERT and UPDATE to handle missing RLS on insert
             if (editForm.fecha_ingreso) {
-                const { error: ingError } = await supabase.from('empleado_ingreso').upsert({
-                    id_empleado: id,
-                    fecha_ingreso: editForm.fecha_ingreso
-                })
-                if (ingError) console.error("Error ingreso:", ingError)
+                // First check if there's an existing record
+                const { data: existingIngreso } = await supabase
+                    .from('empleado_ingreso')
+                    .select('id_empleado')
+                    .eq('id_empleado', id)
+                    .maybeSingle()
+
+                if (existingIngreso) {
+                    // UPDATE existing record
+                    const { error: ingError } = await supabase
+                        .from('empleado_ingreso')
+                        .update({ fecha_ingreso: editForm.fecha_ingreso })
+                        .eq('id_empleado', id)
+                    if (ingError) throw new Error("Error al actualizar fecha de ingreso: " + ingError.message)
+                } else {
+                    // INSERT new record
+                    const { error: ingError } = await supabase
+                        .from('empleado_ingreso')
+                        .insert({ id_empleado: id, fecha_ingreso: editForm.fecha_ingreso })
+                    if (ingError) throw new Error("Error al registrar fecha de ingreso: " + ingError.message)
+                }
             }
 
             // 4. Upsert Banco
@@ -377,7 +397,7 @@ export default function EmpleadoDetallePage() {
                     clabe: editForm.clabe
                 }
                 const { error: bankError } = await supabase.from('empleado_banco').upsert(bancoData)
-                if (bankError) console.error("Error banco:", bankError)
+                if (bankError) throw new Error("Error banco: " + bankError.message)
             }
 
             // 5. Upsert Salario Diario
@@ -395,7 +415,7 @@ export default function EmpleadoDetallePage() {
                 }
 
                 const { error: salError } = await supabase.from('empleado_salarios').upsert(salarioData)
-                if (salError) console.error("Error salario:", salError)
+                if (salError) throw new Error("Error salario: " + salError.message)
             }
 
             // Refresh data
@@ -403,7 +423,9 @@ export default function EmpleadoDetallePage() {
             setIsEditing(false)
             alert('Información actualizada correctamente')
         } catch (e: any) {
-            alert('Error updating: ' + e.message)
+            setSaveError(e.message)
+        } finally {
+            setSaving(false)
         }
     }
 
@@ -681,8 +703,13 @@ export default function EmpleadoDetallePage() {
                                 <div>
                                     <h3 className="text-xl font-bold text-zinc-900">Editar Información</h3>
                                     <p className="text-sm text-zinc-500">Actualice los datos del empleado</p>
+                                    {saveError && (
+                                        <p className="text-xs text-red-600 font-bold mt-1 bg-red-50 border border-red-200 rounded px-2 py-1">
+                                            ⚠️ {saveError}
+                                        </p>
+                                    )}
                                 </div>
-                                <button onClick={() => setIsEditing(false)} className="text-zinc-400 hover:text-zinc-900">
+                                <button onClick={() => { setIsEditing(false); setSaveError(null) }} className="text-zinc-400 hover:text-zinc-900">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>

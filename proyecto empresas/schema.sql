@@ -5,99 +5,8 @@
 --              existan sin borrar datos previos.
 -- ==========================================
 
--- 1. ASEGURAR TABLAS BASE Y NUEVAS COLUMNAS
-DO $$ 
-BEGIN
-    -- cat_causas_baja
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cat_causas_baja' AND column_name='requiere_evidencia') THEN
-        ALTER TABLE cat_causas_baja ADD COLUMN requiere_evidencia BOOLEAN DEFAULT FALSE;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cat_causas_baja' AND column_name='rol_iniciador') THEN
-        ALTER TABLE cat_causas_baja ADD COLUMN rol_iniciador TEXT DEFAULT 'Jefe';
-    END IF;
-
-    -- empleados
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='estado_civil') THEN
-        ALTER TABLE empleados ADD COLUMN estado_civil TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='tipo_residencia') THEN
-        ALTER TABLE empleados ADD COLUMN tipo_residencia TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='hijos_numero') THEN
-        ALTER TABLE empleados ADD COLUMN hijos_numero INT DEFAULT 0;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='fecha_actualizacion') THEN
-        ALTER TABLE empleados ADD COLUMN fecha_actualizacion TIMESTAMPTZ DEFAULT now();
-    END IF;
-
-    -- Limpiar duplicados en catálogos antes de agregar UNIQUE
-    -- Mantener solo el registro más antiguo (menor ctid) por cada valor duplicado
-    DELETE FROM cat_tipos_solicitud a
-        USING cat_tipos_solicitud b
-        WHERE a.ctid > b.ctid
-        AND a.tipo_solicitud = b.tipo_solicitud;
-
-    DELETE FROM cat_tipos_incidencia a
-        USING cat_tipos_incidencia b
-        WHERE a.ctid > b.ctid
-        AND a.tipo_incidencia = b.tipo_incidencia;
-
-    -- Agregar restricciones UNIQUE solo si no existen ya
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'cat_tipos_solicitud_tipo_solicitud_key'
-    ) THEN
-        ALTER TABLE cat_tipos_solicitud ADD CONSTRAINT cat_tipos_solicitud_tipo_solicitud_key UNIQUE (tipo_solicitud);
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'cat_tipos_incidencia_tipo_incidencia_key'
-    ) THEN
-        ALTER TABLE cat_tipos_incidencia ADD CONSTRAINT cat_tipos_incidencia_tipo_incidencia_key UNIQUE (tipo_incidencia);
-    END IF;
-
-    -- Habilitar RLS y Políticas Autenticadas (Idempotente)
-    EXECUTE 'ALTER TABLE empleado_domicilio ENABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE empleado_banco ENABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE empleado_salarios ENABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE empleado_roles ENABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE empleado_incidencias ENABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE vacaciones_saldos ENABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE cat_tipos_incidencia ENABLE ROW LEVEL SECURITY';
-    EXECUTE 'ALTER TABLE cat_tipos_solicitud ENABLE ROW LEVEL SECURITY';
-END $$;
-
--- Aplicar políticas de acceso total para usuarios autenticados
-DO $$ 
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_domicilio' AND policyname = 'Authenticated All') THEN
-        CREATE POLICY "Authenticated All" ON empleado_domicilio FOR ALL USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_banco' AND policyname = 'Authenticated All') THEN
-        CREATE POLICY "Authenticated All" ON empleado_banco FOR ALL USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_salarios' AND policyname = 'Authenticated All') THEN
-        CREATE POLICY "Authenticated All" ON empleado_salarios FOR ALL USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_roles' AND policyname = 'Authenticated All') THEN
-        CREATE POLICY "Authenticated All" ON empleado_roles FOR ALL USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_incidencias' AND policyname = 'Authenticated All') THEN
-        CREATE POLICY "Authenticated All" ON empleado_incidencias FOR ALL USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'vacaciones_saldos' AND policyname = 'Authenticated All') THEN
-        CREATE POLICY "Authenticated All" ON vacaciones_saldos FOR ALL USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cat_tipos_incidencia' AND policyname = 'Public Read') THEN
-        CREATE POLICY "Public Read" ON cat_tipos_incidencia FOR SELECT USING (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cat_tipos_solicitud' AND policyname = 'Public Read') THEN
-        CREATE POLICY "Public Read" ON cat_tipos_solicitud FOR SELECT USING (true);
-    END IF;
-END $$;
-
--- 2. CREACIÓN DE TABLAS SI NO EXISTEN (Asegurando esquemas completos)
+-- 1. CREACIÓN DE TABLAS BASE SI NO EXISTEN
+-- Esto garantiza que las tablas existan antes de cualquier ALTER o RLS
 CREATE TABLE IF NOT EXISTS cat_cecos (
     id_ceco UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     clave_ceco TEXT NOT NULL,
@@ -107,7 +16,7 @@ CREATE TABLE IF NOT EXISTS cat_cecos (
 
 CREATE TABLE IF NOT EXISTS cat_tipos_rol (
     id_tipo_rol UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tipo_rol TEXT NOT NULL,
+    tipo_rol TEXT UNIQUE NOT NULL,
     dias_trabajo INT NOT NULL,
     dias_descanso INT NOT NULL,
     descripcion TEXT,
@@ -161,12 +70,176 @@ CREATE TABLE IF NOT EXISTS bajas (
     PRIMARY KEY (id_empleado, fecha_baja)
 );
 
--- 3. SEMILLAS (Datos faltantes)
+-- 2. ASEGURAR NUEVAS COLUMNAS Y REPARAR RELACIONES
+DO $$ 
+BEGIN
+    -- cat_causas_baja
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_causas_baja') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cat_causas_baja' AND column_name='requiere_evidencia') THEN
+            ALTER TABLE cat_causas_baja ADD COLUMN requiere_evidencia BOOLEAN DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='cat_causas_baja' AND column_name='rol_iniciador') THEN
+            ALTER TABLE cat_causas_baja ADD COLUMN rol_iniciador TEXT DEFAULT 'Jefe';
+        END IF;
+    END IF;
+
+    -- empleados
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleados') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='estado_civil') THEN
+            ALTER TABLE empleados ADD COLUMN estado_civil TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='tipo_residencia') THEN
+            ALTER TABLE empleados ADD COLUMN tipo_residencia TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='hijos_numero') THEN
+            ALTER TABLE empleados ADD COLUMN hijos_numero INT DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='empleados' AND column_name='fecha_actualizacion') THEN
+            ALTER TABLE empleados ADD COLUMN fecha_actualizacion TIMESTAMPTZ DEFAULT now();
+        END IF;
+    END IF;
+
+    -- Reparar relación de empleado_salarios (Basado en el error reportado)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_salarios') THEN
+        ALTER TABLE empleado_salarios DROP CONSTRAINT IF EXISTS empleado_salarios_id_empleado_fkey;
+        ALTER TABLE empleado_salarios ADD CONSTRAINT empleado_salarios_id_empleado_fkey 
+            FOREIGN KEY (id_empleado) REFERENCES empleados(id_empleado) ON DELETE CASCADE;
+    END IF;
+
+    -- Limpiar duplicados en catálogos antes de agregar UNIQUE
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_solicitud') THEN
+        DELETE FROM cat_tipos_solicitud a
+            USING cat_tipos_solicitud b
+            WHERE a.ctid > b.ctid
+            AND a.tipo_solicitud = b.tipo_solicitud;
+
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cat_tipos_solicitud_tipo_solicitud_key') THEN
+            ALTER TABLE cat_tipos_solicitud ADD CONSTRAINT cat_tipos_solicitud_tipo_solicitud_key UNIQUE (tipo_solicitud);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_incidencia') THEN
+        DELETE FROM cat_tipos_incidencia a
+            USING cat_tipos_incidencia b
+            WHERE a.ctid > b.ctid
+            AND a.tipo_incidencia = b.tipo_incidencia;
+
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cat_tipos_incidencia_tipo_incidencia_key') THEN
+            ALTER TABLE cat_tipos_incidencia ADD CONSTRAINT cat_tipos_incidencia_tipo_incidencia_key UNIQUE (tipo_incidencia);
+        END IF;
+    END IF;
+
+    -- Habilitar RLS de forma segura
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_domicilio') THEN EXECUTE 'ALTER TABLE empleado_domicilio ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_ingreso') THEN EXECUTE 'ALTER TABLE empleado_ingreso ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_banco') THEN EXECUTE 'ALTER TABLE empleado_banco ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_salarios') THEN EXECUTE 'ALTER TABLE empleado_salarios ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_roles') THEN EXECUTE 'ALTER TABLE empleado_roles ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_incidencias') THEN EXECUTE 'ALTER TABLE empleado_incidencias ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='vacaciones_saldos') THEN EXECUTE 'ALTER TABLE vacaciones_saldos ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_adscripciones') THEN EXECUTE 'ALTER TABLE empleado_adscripciones ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='bajas') THEN EXECUTE 'ALTER TABLE bajas ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='auditoria') THEN EXECUTE 'ALTER TABLE auditoria ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='solicitud_aprobaciones') THEN EXECUTE 'ALTER TABLE solicitud_aprobaciones ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_periodos_vacacionales') THEN EXECUTE 'ALTER TABLE cat_periodos_vacacionales ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_incidencia') THEN EXECUTE 'ALTER TABLE cat_tipos_incidencia ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_solicitud') THEN EXECUTE 'ALTER TABLE cat_tipos_solicitud ENABLE ROW LEVEL SECURITY'; END IF;
+END $$;
+
+-- 3. POLÍTICAS DE ACCESO
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_domicilio') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_domicilio' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleado_domicilio FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_ingreso') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_ingreso' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleado_ingreso FOR ALL USING (true);
+        END IF;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_banco') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_banco' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleado_banco FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_salarios') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_salarios' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleado_salarios FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_roles') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_roles' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleado_roles FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_incidencias') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_incidencias' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleado_incidencias FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='vacaciones_saldos') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'vacaciones_saldos' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON vacaciones_saldos FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleado_adscripciones') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleado_adscripciones' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleado_adscripciones FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='bajas') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'bajas' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON bajas FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='auditoria') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'auditoria' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON auditoria FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='solicitud_aprobaciones') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'solicitud_aprobaciones' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON solicitud_aprobaciones FOR ALL USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_periodos_vacacionales') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cat_periodos_vacacionales' AND policyname = 'Public Read') THEN
+            CREATE POLICY "Public Read" ON cat_periodos_vacacionales FOR SELECT USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_incidencia') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cat_tipos_incidencia' AND policyname = 'Public Read') THEN
+            CREATE POLICY "Public Read" ON cat_tipos_incidencia FOR SELECT USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_solicitud') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cat_tipos_solicitud' AND policyname = 'Public Read') THEN
+            CREATE POLICY "Public Read" ON cat_tipos_solicitud FOR SELECT USING (true);
+        END IF;
+    END IF;
+END $$;
+
+-- 4. SEMILLAS (Datos faltantes)
 INSERT INTO cat_tipos_rol (tipo_rol, dias_trabajo, dias_descanso) VALUES
 ('20x10', 20, 10),
 ('14x7', 14, 7),
 ('5x2 (Oficina)', 5, 2)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (tipo_rol) DO NOTHING;
 
 INSERT INTO cat_causas_baja (causa, requiere_evidencia, rol_iniciador) VALUES 
 ('Término de contrato', FALSE, 'Sistema'),
@@ -177,17 +250,12 @@ INSERT INTO cat_causas_baja (causa, requiere_evidencia, rol_iniciador) VALUES
 ('Otra', TRUE, 'Jefe'),
 ('Ausentismo', TRUE, 'Jefe'),
 ('Rescisión de contrato', TRUE, 'Jefe')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (causa) DO NOTHING;
 
--- Semillas de Solicitudes
 INSERT INTO cat_tipos_solicitud (tipo_solicitud) VALUES
-('Vacaciones'),
-('Baja de Personal'),
-('Permiso Especial'),
-('Reingreso de Personal')
+('Vacaciones'), ('Baja de Personal'), ('Permiso Especial'), ('Reingreso de Personal')
 ON CONFLICT (tipo_solicitud) DO NOTHING;
 
--- Semillas de Incidencias
 INSERT INTO cat_tipos_incidencia (tipo_incidencia, bloquea_asistencia, cuenta_como_descanso) VALUES
 ('Falta Injustificada', TRUE, FALSE),
 ('Incapacidad', TRUE, FALSE),
@@ -196,7 +264,7 @@ INSERT INTO cat_tipos_incidencia (tipo_incidencia, bloquea_asistencia, cuenta_co
 ('Retardo', FALSE, FALSE)
 ON CONFLICT (tipo_incidencia) DO NOTHING;
 
--- LÓGICA DE AUTOMATIZACIÓN DE VACACIONES
+-- 5. LÓGICA DE AUTOMATIZACIÓN DE VACACIONES
 CREATE OR REPLACE FUNCTION public.fn_get_dias_vacaciones_lft(anios int)
 RETURNS int AS $$
 BEGIN
@@ -226,7 +294,6 @@ DECLARE
     periodo_id uuid;
     dias_entitlement int;
 BEGIN
-    -- Determinar el ID del empleado
     IF TG_TABLE_NAME = 'empleado_ingreso' THEN
         emp_id := NEW.id_empleado;
         fecha_ing := NEW.fecha_ingreso;
@@ -235,26 +302,21 @@ BEGIN
         fecha_ing := (SELECT fecha_ingreso FROM empleado_ingreso WHERE id_empleado = emp_id LIMIT 1);
     END IF;
     
-    -- Si no hay fecha de ingreso, no hacemos nada
     IF fecha_ing IS NULL THEN RETURN NEW; END IF;
 
     anio_ing := EXTRACT(YEAR FROM fecha_ing);
     anio_actual := EXTRACT(YEAR FROM CURRENT_DATE);
 
-    -- Generar periodos desde el año de ingreso hasta el año actual + 1
     FOR anio_iter IN anio_ing..anio_actual + 1 LOOP
         periodo_txt := anio_iter || ' - ' || (anio_iter + 1);
         
-        -- 1. Asegurar que el periodo exista
         INSERT INTO cat_periodos_vacacionales (periodo, fecha_inicio, fecha_fin)
         VALUES (periodo_txt, (anio_iter || '-01-01')::date, ((anio_iter + 1) || '-12-31')::date)
         ON CONFLICT (periodo) DO UPDATE SET periodo = EXCLUDED.periodo
         RETURNING id_periodo INTO periodo_id;
 
-        -- 2. Calcular días correspondientes a ese año de servicio
         dias_entitlement := fn_get_dias_vacaciones_lft(anio_iter - anio_ing + 1);
 
-        -- 3. Insertar saldo si no existe
         INSERT INTO vacaciones_saldos (id_empleado, id_periodo, dias_asignados, dias_tomados)
         VALUES (emp_id, periodo_id, dias_entitlement, 0)
         ON CONFLICT (id_empleado, id_periodo) DO NOTHING;
@@ -264,15 +326,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger para empleado_ingreso (cambios de fecha)
+-- Triggers
 DROP TRIGGER IF EXISTS tr_generar_vacaciones_ingreso ON empleado_ingreso;
 CREATE TRIGGER tr_generar_vacaciones_ingreso
 AFTER INSERT OR UPDATE OF fecha_ingreso ON empleado_ingreso
 FOR EACH ROW EXECUTE PROCEDURE public.fn_generar_saldos_vacaciones();
 
--- Trigger para empleados (creación)
 DROP TRIGGER IF EXISTS tr_generar_vacaciones_empleado ON empleados;
 CREATE TRIGGER tr_generar_vacaciones_empleado
 AFTER INSERT ON empleados
 FOR EACH ROW EXECUTE PROCEDURE public.fn_generar_saldos_vacaciones();
-

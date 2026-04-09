@@ -157,6 +157,10 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_periodos_vacacionales') THEN EXECUTE 'ALTER TABLE cat_periodos_vacacionales ENABLE ROW LEVEL SECURITY'; END IF;
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_incidencia') THEN EXECUTE 'ALTER TABLE cat_tipos_incidencia ENABLE ROW LEVEL SECURITY'; END IF;
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_solicitud') THEN EXECUTE 'ALTER TABLE cat_tipos_solicitud ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='turnos') THEN EXECUTE 'ALTER TABLE turnos ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='checadas') THEN EXECUTE 'ALTER TABLE checadas ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_checada') THEN EXECUTE 'ALTER TABLE cat_tipos_checada ENABLE ROW LEVEL SECURITY'; END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleados') THEN EXECUTE 'ALTER TABLE empleados ENABLE ROW LEVEL SECURITY'; END IF;
 END $$;
 
 -- 3. POLÍTICAS DE ACCESO
@@ -243,6 +247,33 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_solicitud') THEN
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cat_tipos_solicitud' AND policyname = 'Public Read') THEN
             CREATE POLICY "Public Read" ON cat_tipos_solicitud FOR SELECT USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='turnos') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'turnos' AND policyname = 'Public Read') THEN
+            CREATE POLICY "Public Read" ON turnos FOR SELECT USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='cat_tipos_checada') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'cat_tipos_checada' AND policyname = 'Public Read') THEN
+            CREATE POLICY "Public Read" ON cat_tipos_checada FOR SELECT USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='checadas') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'checadas' AND policyname = 'Authenticated Insert') THEN
+            CREATE POLICY "Authenticated Insert" ON checadas FOR INSERT WITH CHECK (true);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'checadas' AND policyname = 'Authenticated Select') THEN
+            CREATE POLICY "Authenticated Select" ON checadas FOR SELECT USING (true);
+        END IF;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='empleados') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'empleados' AND policyname = 'Authenticated All') THEN
+            CREATE POLICY "Authenticated All" ON empleados FOR ALL USING (true);
         END IF;
     END IF;
 END $$;

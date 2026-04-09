@@ -28,6 +28,7 @@ export async function GET() {
                 empleados_visto: !!sample,
                 error_empleados: sampleError || null,
                 columnas_posibles: sample ? Object.keys(sample[0] || {}) : [],
+                lista_empleados: sample || [], // Se agregan los datos reales
                 resumen_tablas: {
                     checadas: checadasCount,
                     turnos_ejemplo: turnos

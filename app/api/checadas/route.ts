@@ -266,7 +266,11 @@ export async function POST(request: Request) {
 
         if (insertError) {
             console.error('Error insertando checada:', insertError)
-            return NextResponse.json({ ok: false, error_code: 'DB_ERROR', mensaje: 'No se pudo guardar la asistencia.' }, { status: 500, headers: corsHeaders })
+            return NextResponse.json({ 
+                ok: false, 
+                error_code: 'DB_ERROR', 
+                mensaje: `ERROR DE BASE DE DATOS: ${insertError.message}${insertError.code ? ' (Código: ' + insertError.code + ')' : ''}. No se pudo guardar la asistencia.` 
+            }, { status: 500, headers: corsHeaders })
         }
 
         const nombreCompleto = `${emp.nombre} ${emp.apellido_paterno} ${emp.apellido_materno || ''}`.trim()

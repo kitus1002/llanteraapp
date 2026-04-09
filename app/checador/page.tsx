@@ -161,12 +161,18 @@ export default function ChecadorKiosko() {
     const handleDiag = async () => {
         setEstado('PROCESANDO')
         try {
-            const { count, error } = await supabase.from('empleados').select('*', { count: 'exact', head: true })
+            const { data: emps, error } = await supabase
+                .from('empleados')
+                .select('nombre, numero_empleado')
+                .eq('estado_empleado', 'Activo')
+                .limit(10)
+
             const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'No URL'
             if (error) {
                 alert(`FALLO DE CONEXIÓN:\n\nError: ${error.message}\nDB URL: ${url}`)
             } else {
-                alert(`CONEXIÓN EXITOSA:\n\nEmpleados visibles: ${count}\nBase de Datos: ${url}\n\nSi aquí ves 0 empleados, es que esta web está conectada a una base de datos vacía.`)
+                const lista = emps?.map(e => `• ${e.numero_empleado}: ${e.nombre}`).join('\n') || 'No hay empleados activos.'
+                alert(`CONEXIÓN EXITOSA:\n\nEmpleados Activos (TOP 10):\n${lista}\n\nBase de Datos: ${url}`)
             }
         } catch (e: any) {
             alert(`ERROR CRÍTICO:\n${e.message}`)

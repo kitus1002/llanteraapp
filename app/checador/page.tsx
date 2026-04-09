@@ -176,17 +176,17 @@ export default function ChecadorKiosko() {
                 .single()
 
             if (error) {
-                console.error('Error al buscar empleado:', error)
-                setErrorMsg(`Error de base de datos: ${error.message} (Código: ${error.code})`)
+                console.error('Error detallado:', error)
+                setErrorMsg(`Error DB: ${error.message} (${error.code})`)
                 setEstado('ERROR')
-                setTimeout(resetFlujo, 4000)
+                setTimeout(resetFlujo, 5000)
                 return
             }
 
             if (!emp) {
-                setErrorMsg(`N° de Empleado "${idManual}" no encontrado. Verifica en el directorio de personal.`)
+                setErrorMsg(`El número "${idManual}" no existe en el sistema. Prueba con el 20500 (Jesus Lopez).`)
                 setEstado('ERROR')
-                setTimeout(resetFlujo, 4000)
+                setTimeout(resetFlujo, 5000)
                 return
             }
 

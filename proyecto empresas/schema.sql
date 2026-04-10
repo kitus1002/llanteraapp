@@ -91,10 +91,10 @@ CREATE TABLE IF NOT EXISTS cat_tipos_checada (
     tipo                  TEXT NOT NULL UNIQUE,
     label                 TEXT NOT NULL,
     requiere_codigo       BOOLEAN DEFAULT FALSE,
-    ICONO                 TEXT,
-    ORDINAL               INT DEFAULT 0,
-    TOLERANCIA_RETORNO_MIN INT DEFAULT 5,
-    ACTIVO                BOOLEAN DEFAULT TRUE
+    icono                 TEXT,
+    ordinal               INT DEFAULT 0,
+    tolerancia_retorno_min INT DEFAULT 5,
+    activo                BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS dispositivos_checadores (

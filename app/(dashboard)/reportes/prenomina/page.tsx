@@ -114,53 +114,64 @@ function calcAttendance(
             const ent = dayChecadas.find(c => entTypes.includes(c.tipo_checada))
 
             if (ent) {
+                const entReal = new Date(ent.timestamp_checada)
                 const turnoId = ent.id_turno || activeRole.cat_tipos_rol?.id_tipo_rol || activeRole.id_turno
-                // Fallback para buscar turno por ID o por Nombre si el ID no coincide
-                const turno = turnosDic[turnoId] || Object.values(turnosDic).find(t => t.nombre === turnoId || t.id === turnoId)
+                
+                // Buscador robusto de Turnos
+                const turno = turnosDic[turnoId] || Object.values(turnosDic).find(t => 
+                    String(t.id).toLowerCase() === String(turnoId).toLowerCase() || 
+                    String(t.nombre).toLowerCase() === String(turnoId).toLowerCase()
+                )
+
+                // Buscar la PRIMERA salida que ocurra DESPUÉS de esta entrada
+                const entTimeNum = entReal.getTime()
+                let sal = empChecadas.find(c => 
+                    salTypes.includes(c.tipo_checada) && 
+                    new Date(c.timestamp_checada).getTime() > entTimeNum
+                )
+
+                // Umbral: Si la salida es más de 18 horas después, probablemente no es de este turno
+                if (sal && (new Date(sal.timestamp_checada).getTime() - entTimeNum) > 18 * 60 * 60 * 1000) {
+                    sal = null
+                }
 
                 if (turno && turno.hora_fin) {
                     const [hNom, mNom] = turno.hora_fin.split(':').map(Number)
                     const totalMinutosTurno = (hNom * 60) + mNom
-
+                    
                     const [hIni, mIni] = (turno.hora_inicio || '00:00').split(':').map(Number)
-                    const totalMinutosInicio = (hIni * 60) + mIni
-                    const esNocturno = totalMinutosTurno < totalMinutosInicio
-
-                    // Buscar la PRIMERA salida que ocurra DESPUÉS de esta entrada
-                    const entTimeNum = new Date(ent.timestamp_checada).getTime()
-                    let sal = empChecadas.find(c =>
-                        salTypes.includes(c.tipo_checada) &&
-                        new Date(c.timestamp_checada).getTime() > entTimeNum
-                    )
-
-                    // Umbral: Si la salida es más de 18 horas después, probablemente no es de este turno
-                    if (sal && (new Date(sal.timestamp_checada).getTime() - entTimeNum) > 18 * 60 * 60 * 1000) {
-                        sal = null
-                    }
+                    const totalMinutosTurnoInicio = (hIni * 60) + mIni
+                    const esNocturno = totalMinutosTurno < totalMinutosTurnoInicio
 
                     if (sal && sal.timestamp_checada) {
                         const salReal = new Date(sal.timestamp_checada)
-                        if (!isNaN(salReal.getTime())) {
-                            const salH = salReal.getHours()
-                            const salM = salReal.getMinutes()
-                            let totalMinutosSalida = (salH * 60) + salM
+                        const salH = salReal.getHours()
+                        const salM = salReal.getMinutes()
+                        let totalMinutosSalida = (salH * 60) + salM
 
-                            const salDayStr = format(salReal, 'yyyy-MM-dd')
-                            if (salDayStr !== dayStr) {
-                                totalMinutosSalida += 1440
-                            }
+                        const salDayStr = format(salReal, 'yyyy-MM-dd')
+                        if (salDayStr !== dayStr) {
+                            totalMinutosSalida += 1440
+                        }
 
-                            let targetMin = totalMinutosTurno
-                            if (esNocturno) targetMin += 1440
+                        let targetMin = totalMinutosTurno
+                        if (esNocturno) targetMin += 1440
 
-                            const extraMin = Math.max(0, totalMinutosSalida - targetMin)
-                            if (extraMin >= 15) {
-                                dailyExtraHrs = extraMin / 60
-                                horasExtraTotales += dailyExtraHrs
-                            }
+                        const extraMin = Math.max(0, totalMinutosSalida - targetMin)
+                        if (extraMin >= 15) {
+                            dailyExtraHrs = extraMin / 60
+                            horasExtraTotales += dailyExtraHrs
                         }
                     } else {
                         assumedOut = true
+                    }
+                } else if (sal) {
+                    const salReal = new Date(sal.timestamp_checada)
+                    const diffHrs = (salReal.getTime() - entReal.getTime()) / (1000 * 60 * 60)
+                    if (diffHrs > 9) {
+                        const turnoNom = turno?.nombre || turnoId || 'Sin Nombre'
+                        const msg = `⚠️ CONFIGURAR HORARIO (${turnoNom})`
+                        if (!alerts.includes(msg)) alerts.push(msg)
                     }
                 }
             }

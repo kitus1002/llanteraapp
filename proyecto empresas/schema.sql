@@ -242,6 +242,9 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='document_templates' AND column_name='footer_html') THEN
             ALTER TABLE document_templates ADD COLUMN footer_html TEXT;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='document_templates' AND column_name='page_settings') THEN
+            ALTER TABLE document_templates ADD COLUMN page_settings JSONB DEFAULT '{"margins": {"top": 2.5, "right": 3, "bottom": 2.5, "left": 3}}';
+        END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='document_templates' AND column_name='blocks') THEN
             ALTER TABLE document_templates ADD COLUMN blocks JSONB;
         END IF;

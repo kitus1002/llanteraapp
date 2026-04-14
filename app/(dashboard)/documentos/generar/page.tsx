@@ -147,18 +147,29 @@ export default function GenerarDocumentoPage() {
             TextAlign.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center', 'right', 'justify'] }),
         ]
 
-        // 1. Convert JSON to HTML for all sections
-        let body = generateHTML(selectedTemplate.content || {}, extensions)
-        let header = selectedTemplate.header_content ? generateHTML(selectedTemplate.header_content, extensions) : ''
-        let footer = selectedTemplate.footer_content ? generateHTML(selectedTemplate.footer_content, extensions) : ''
+        let body = ''
+        let header = ''
+        let footer = ''
+
+        try {
+            // 1. Convert JSON to HTML for all sections
+            body = selectedTemplate.content ? generateHTML(selectedTemplate.content, extensions) : (selectedTemplate.body_html || '')
+            header = selectedTemplate.header_content ? generateHTML(selectedTemplate.header_content, extensions) : (selectedTemplate.header_html || '')
+            footer = selectedTemplate.footer_content ? generateHTML(selectedTemplate.footer_content, extensions) : (selectedTemplate.footer_html || '')
+        } catch (e) {
+            console.error("Error generating HTML from template JSON:", e)
+            body = selectedTemplate.body_html || ''
+            header = selectedTemplate.header_html || ''
+            footer = selectedTemplate.footer_html || ''
+        }
 
         // Data Prep
         const depto = selectedEmployee.empleado_adscripciones?.[0]?.cat_departamentos?.departamento || ''
         const empresa = companyConfig?.nombre_empresa || 'MI EMPRESA S.A. DE C.V.'
 
         const variables: Record<string, string> = {
-            '{nombre}': selectedEmployee.nombre,
-            '{apellido_paterno}': selectedEmployee.apellido_paterno,
+            '{nombre}': selectedEmployee.nombre || '',
+            '{apellido_paterno}': selectedEmployee.apellido_paterno || '',
             '{apellido_materno}': selectedEmployee.apellido_materno || '',
             '{puesto}': selectedEmployee.puesto || '',
             '{salario}': selectedEmployee.salario_diario ? `$${(selectedEmployee.salario_diario * 30).toFixed(2)}` : '',
@@ -188,8 +199,8 @@ export default function GenerarDocumentoPage() {
         setHeaderHtml(replaceVars(header))
         setFooterHtml(replaceVars(footer))
 
-        // Set initial margins from template
-        const tplMargins = selectedTemplate.page_settings?.margins
+        // Set initial margins - try root first, then page_settings
+        const tplMargins = selectedTemplate.page_settings?.margins || selectedTemplate.margins
         if (tplMargins) {
             setMargins({
                 top: tplMargins.top ?? 2.5,

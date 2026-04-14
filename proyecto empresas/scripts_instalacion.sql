@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS document_templates (
     body_html TEXT,
     header_html TEXT,
     footer_html TEXT,
-    margins JSONB DEFAULT '{"top": 2.5, "right": 2.5, "bottom": 2.5, "left": 2.5}'::JSONB,
+    page_settings JSONB DEFAULT '{"margins": {"top": 2.5, "right": 3, "bottom": 2.5, "left": 3}}',
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

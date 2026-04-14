@@ -35,6 +35,7 @@ const navigation = [
     { name: 'Documentos', href: '/documentos', icon: Files },
     { name: 'Asistencia', href: '/asistencia/dashboard', icon: Clock },
     { name: 'Catálogos', href: '/catalogos', icon: Library },
+    { name: 'Evaluaciones', href: '/evaluaciones', icon: Activity },
     { name: 'Checador (Kiosko)', href: '/checador', icon: Activity },
     { name: 'Configuración', href: '/configuracion', icon: Settings },
     { name: 'Acerca de', href: '/acerca-de', icon: Info },

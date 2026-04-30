@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         
         const { data: emp, error: empError } = await supabase
             .from('empleados')
-            .select('id_empleado, nombre, apellido_paterno, apellido_materno, estado_empleado, id_turno')
+            .select('id_empleado, nombre, apellido_paterno, apellido_materno, estado_empleado, id_turno, id_turno_sabado')
             .eq('numero_empleado', idNumerico)
             .maybeSingle()
 
@@ -171,6 +171,14 @@ export async function POST(request: Request) {
 
         const fecha_local = dayFormatter.format(baseDate)
 
+        // Determinar día de la semana para horario mixto
+        const dayOfWeekFormatter = new Intl.DateTimeFormat('es-MX', { weekday: 'long', timeZone: timezone })
+        const diaSemana = dayOfWeekFormatter.format(baseDate).toLowerCase()
+        const esSabado = diaSemana.includes('sábado') || diaSemana.includes('sabado')
+
+        // Seleccionar el turno correcto (Normal o Sábado)
+        const idTurnoAEvaluar = (esSabado && emp.id_turno_sabado) ? emp.id_turno_sabado : emp.id_turno
+
         if (tipo_checada === 'REGRESO_PERMISO_PERSONAL' || tipo_checada === 'REGRESO_OPERACIONES') {
             const tipoPermisoBuscado = tipo_checada === 'REGRESO_PERMISO_PERSONAL' ? 'PERMISO_PERSONAL' : 'SALIDA_OPERACIONES'
 
@@ -214,15 +222,15 @@ export async function POST(request: Request) {
                     .eq('id', permisoValidoId)
             }
         }
-        else if (emp.id_turno && (tipo_checada === 'ENTRADA' || tipo_checada === 'COMIDA_REGRESO')) {
-            const { data: turno, error: turnoError } = await supabase.from('turnos').select('*').eq('id', emp.id_turno).single()
+        else if (idTurnoAEvaluar && (tipo_checada === 'ENTRADA' || tipo_checada === 'COMIDA_REGRESO')) {
+            const { data: turno, error: turnoError } = await supabase.from('turnos').select('*').eq('id', idTurnoAEvaluar).single()
 
             if (turnoError || !turno) {
                 console.error('Error cargando turno:', turnoError)
                 return NextResponse.json({
                     ok: false,
                     error_code: 'TURNO_NOT_FOUND',
-                    mensaje: `Error: No se pudo cargar tu horario asignado (${emp.id_turno}). Verifica los permisos SQL.`
+                    mensaje: `Error: No se pudo cargar tu horario asignado (${idTurnoAEvaluar}). Verifica los permisos SQL.`
                 }, { status: 400, headers: corsHeaders })
             }
 
@@ -241,7 +249,7 @@ export async function POST(request: Request) {
                 estatus_puntualidad = 'RETARDO'
                 retardo_minutos = difMinutos
             }
-        } else if (!emp.id_turno && (tipo_checada === 'ENTRADA' || tipo_checada === 'COMIDA_REGRESO')) {
+        } else if (!idTurnoAEvaluar && (tipo_checada === 'ENTRADA' || tipo_checada === 'COMIDA_REGRESO')) {
             estatus_puntualidad = 'SIN_TURNO'
         }
 
@@ -255,7 +263,7 @@ export async function POST(request: Request) {
                 estatus_puntualidad,
                 retardo_minutos,
                 id_permiso: permisoValidoId,
-                id_turno: emp.id_turno || null, // Guardar el turno auditado
+                id_turno: idTurnoAEvaluar || null, // Guardar el turno auditado
                 metodo_identificacion: metodo || 'ID_MANUAL',
                 origen: origenInput || 'android',
                 timestamp_checada: baseDate.toISOString(),

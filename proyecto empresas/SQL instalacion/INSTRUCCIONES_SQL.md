@@ -5,7 +5,7 @@ El script `10_Schema_Actualizacion_RLS_Completo.sql` fallaba en la inserción po
 Para respetar el código 100% original sin modificar su contenido, **hemos reorganizado el orden de ejecución** para que los parches estructurales (`ALTER TABLE`) se ejecuten **antes** del volcado de mantenimiento (`INSERT`).
 
 ### 📋 Instrucciones de Ejecución
-Ejecuta los archivos en el **SQL Editor de Supabase** siguiendo estrictamente la numeración del **01 al 28**.
+Ejecuta los archivos en el **SQL Editor de Supabase** siguiendo estrictamente la numeración del **01 al 29**.
 
 ---
 
@@ -32,6 +32,7 @@ Ejecuta los archivos en el **SQL Editor de Supabase** siguiendo estrictamente la
 13. **17_Config_Timezone.sql** a **26_Create_Table_Perfiles_Standalone.sql**: Inicialización de vacaciones, migraciones de jerarquía y catálogos de bajas IMSS.
 14. **27_Fix_RLS_Vacaciones_Completo.sql**: Resuelve el error de permisos al guardar fechas de ingreso (cat_periodos_vacacionales).
 15. **28_Fix_Numero_Empleado_Autoincrement.sql**: Convierte el número de empleado en automático para evitar errores de duplicados.
+16. **29_Fix_RLS_Departamentos.sql**: Resuelve el error de permisos al crear o editar departamentos (cat_departamentos).
 
 ---
-**Conclusión:** Ejecutando del 01 al 28 en este nuevo orden, las dependencias de tablas y columnas encajarán a la perfección.
+**Conclusión:** Ejecutando del 01 al 29 en este nuevo orden, las dependencias de tablas y columnas encajarán a la perfección.

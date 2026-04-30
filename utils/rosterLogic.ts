@@ -13,9 +13,16 @@ export type Incident = {
 export type Role = {
     fecha_inicio: string
     cat_tipos_rol: {
+        id_tipo_rol: string
         dias_trabajo: number
         dias_descanso: number
         tipo_rol: string
+        // Campos para horario mixto
+        hora_inicio?: string
+        hora_fin?: string
+        hora_inicio_especial?: string
+        hora_fin_especial?: string
+        dias_especiales?: string[]
     }
 }
 
@@ -235,9 +242,9 @@ export function calculateDailyStatus(
 
     if (checadaEntrada) {
         if (checadaEntrada.estatus_puntualidad === 'RETARDO') {
-            return { status: 'Retardo', label: 'R', color: 'bg-amber-500 text-white', details: 'Retardo registrado' }
+            return { status: 'Retardo', label: 'R', color: 'bg-amber-500 text-white', details: `Retardo: Entrada a las ${format(new Date(checadaEntrada.timestamp_checada), 'HH:mm')}` }
         }
-        return { status: 'Asistencia', label: 'A', color: 'bg-green-500 text-white', details: 'Asistencia puntual' }
+        return { status: 'Asistencia', label: 'A', color: 'bg-green-500 text-white', details: `Asistencia puntual: ${format(new Date(checadaEntrada.timestamp_checada), 'HH:mm')}` }
     }
 
     // ── 5. Sin checada: Estado de ausencia ───────────────────────────────
@@ -245,10 +252,20 @@ export function calculateDailyStatus(
         return { status: 'Falta', label: 'F', color: 'bg-red-600 text-white', details: 'Inasistencia (sin registro)' }
     }
 
+    // Día futuro o sin checada
+    const dayOfWeekFormatter = new Intl.DateTimeFormat('es-MX', { weekday: 'long' })
+    const rawDia = dayOfWeekFormatter.format(targetDate)
+    const diaSemana = rawDia.charAt(0).toUpperCase() + rawDia.slice(1).toLowerCase()
+    const esDiaEspecial = role.cat_tipos_rol.dias_especiales?.includes(diaSemana)
+
+    const hEntrada = (esDiaEspecial && role.cat_tipos_rol.hora_inicio_especial) ? role.cat_tipos_rol.hora_inicio_especial : (role.cat_tipos_rol.hora_inicio || '08:00')
+    const hSalida = (esDiaEspecial && role.cat_tipos_rol.hora_fin_especial) ? role.cat_tipos_rol.hora_fin_especial : (role.cat_tipos_rol.hora_fin || '17:00')
+    const scheduleInfo = `Horario: ${hEntrada.slice(0, 5)} - ${hSalida.slice(0, 5)}${esDiaEspecial ? ' (Especial)' : ''}`
+
     if (isToday) {
-        return { status: 'Laborando', label: '·', color: 'bg-green-200 text-green-800', details: 'Día laboral en curso' }
+        return { status: 'Laborando', label: '·', color: 'bg-green-200 text-green-800', details: `${scheduleInfo} - Día laboral en curso` }
     }
 
     // Día futuro planeado
-    return { status: 'Laborando', label: 'A', color: 'bg-green-100 text-green-700', details: 'Día laboral programado' }
+    return { status: 'Laborando', label: 'A', color: 'bg-green-100 text-green-700', details: `${scheduleInfo} - Día laboral programado` }
 }

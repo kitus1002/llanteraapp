@@ -96,7 +96,15 @@ export default function CalendarPage() {
                     const tipoRol = Array.isArray(r.cat_tipos_rol) ? r.cat_tipos_rol[0] : r.cat_tipos_rol
                     rMap[r.id_empleado] = {
                         fecha_inicio: r.fecha_inicio,
-                        cat_tipos_rol: tipoRol
+                        cat_tipos_rol: {
+                            ...tipoRol,
+                            // Asegurar que pasamos los campos de horario mixto
+                            hora_inicio: tipoRol.hora_inicio,
+                            hora_fin: tipoRol.hora_fin,
+                            hora_inicio_especial: tipoRol.hora_inicio_especial,
+                            hora_fin_especial: tipoRol.hora_fin_especial,
+                            dias_especiales: tipoRol.dias_especiales
+                        }
                     }
                 }
             }
@@ -110,7 +118,12 @@ export default function CalendarPage() {
                             id_tipo_rol: tInfo.id,
                             tipo_rol: tInfo.nombre,
                             dias_trabajo: 6,
-                            dias_descanso: 1
+                            dias_descanso: 1,
+                            hora_inicio: tInfo.hora_inicio,
+                            hora_fin: tInfo.hora_fin,
+                            hora_inicio_especial: tInfo.hora_inicio_especial,
+                            hora_fin_especial: tInfo.hora_fin_especial,
+                            dias_especiales: tInfo.dias_especiales
                         }
                     }
                 }

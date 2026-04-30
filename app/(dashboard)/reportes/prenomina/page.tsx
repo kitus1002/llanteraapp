@@ -133,10 +133,16 @@ function calcAttendance(
                 let sal = possibleExits.length > 0 ? possibleExits[possibleExits.length - 1] : null
 
                 if (turno && turno.hora_fin) {
-                    const [hNom, mNom] = turno.hora_fin.split(':').map(Number)
+                    // LÓGICA DE HORARIO MIXTO: Detectar si el día de hoy es especial para el turno
+                    const dayOfWeekFormatter = new Intl.DateTimeFormat('es-MX', { weekday: 'long' })
+                    const rawDia = dayOfWeekFormatter.format(day)
+                    const diaSemana = rawDia.charAt(0).toUpperCase() + rawDia.slice(1).toLowerCase()
+                    const esDiaEspecial = turno?.dias_especiales?.includes(diaSemana)
+
+                    const [hNom, mNom] = ((esDiaEspecial && turno.hora_fin_especial) ? turno.hora_fin_especial : (turno.hora_fin || '17:00')).split(':').map(Number)
                     const totalMinutosTurno = (hNom * 60) + mNom
                     
-                    const [hIni, mIni] = (turno.hora_inicio || '00:00').split(':').map(Number)
+                    const [hIni, mIni] = ((esDiaEspecial && turno.hora_inicio_especial) ? turno.hora_inicio_especial : (turno.hora_inicio || '08:00')).split(':').map(Number)
                     const totalMinutosTurnoInicio = (hIni * 60) + mIni
                     const esNocturno = totalMinutosTurno < totalMinutosTurnoInicio
 

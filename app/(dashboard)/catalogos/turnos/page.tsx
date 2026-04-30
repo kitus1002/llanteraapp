@@ -19,7 +19,10 @@ export default function TurnosPage() {
         tolerancia_min: 15,
         limite_falta_min: 60,
         ventana_desde: '04:00',
-        ventana_hasta: '12:00'
+        ventana_hasta: '12:00',
+        dias_especiales: [] as string[],
+        hora_inicio_especial: '',
+        hora_fin_especial: ''
     })
 
     useEffect(() => {
@@ -43,9 +46,15 @@ export default function TurnosPage() {
         e.preventDefault()
         setIsSubmitting(true)
 
+        const payload = {
+            ...form,
+            hora_inicio_especial: form.hora_inicio_especial || null,
+            hora_fin_especial: form.hora_fin_especial || null
+        }
+
         if (editId) {
             try {
-                const { error } = await supabase.from('turnos').update(form).eq('id', editId)
+                const { error } = await supabase.from('turnos').update(payload).eq('id', editId)
                 if (error) throw error
                 cancelEdit()
                 fetchTurnos()
@@ -61,7 +70,7 @@ export default function TurnosPage() {
             const res = await fetch('/api/turnos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form)
+                body: JSON.stringify(payload)
             })
             const result = await res.json()
             if (result.ok) {
@@ -86,7 +95,10 @@ export default function TurnosPage() {
             tolerancia_min: t.tolerancia_min,
             limite_falta_min: t.limite_falta_min || 60,
             ventana_desde: t.ventana_desde.slice(0, 5),
-            ventana_hasta: t.ventana_hasta.slice(0, 5)
+            ventana_hasta: t.ventana_hasta.slice(0, 5),
+            dias_especiales: t.dias_especiales || [],
+            hora_inicio_especial: t.hora_inicio_especial ? t.hora_inicio_especial.slice(0, 5) : '',
+            hora_fin_especial: t.hora_fin_especial ? t.hora_fin_especial.slice(0, 5) : ''
         })
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -100,7 +112,10 @@ export default function TurnosPage() {
             tolerancia_min: 15,
             limite_falta_min: 60,
             ventana_desde: '04:00',
-            ventana_hasta: '12:00'
+            ventana_hasta: '12:00',
+            dias_especiales: [],
+            hora_inicio_especial: '',
+            hora_fin_especial: ''
         })
     }
 
@@ -210,6 +225,55 @@ export default function TurnosPage() {
                                 <p className="text-[10px] text-red-500 mt-1 font-medium">Exceder este límite marca Falta.</p>
                             </div>
                         </div>
+                        <div className="pt-4 border-t border-zinc-100">
+                            <h3 className="text-sm font-bold text-zinc-800 mb-3 flex items-center gap-2">
+                                <CalendarDays className="w-4 h-4 text-indigo-500" />
+                                Configuración de Sábado (Horario Mixto)
+                            </h3>
+                            
+                            <label className="flex items-center gap-2 cursor-pointer mb-4 group">
+                                <input 
+                                    type="checkbox" 
+                                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                    checked={form.dias_especiales.includes('Sábado')}
+                                    onChange={e => {
+                                        const isChecked = e.target.checked
+                                        setForm(prev => ({
+                                            ...prev,
+                                            dias_especiales: isChecked ? ['Sábado'] : [],
+                                            // Si se marca, poner valores por defecto si están vacíos
+                                            hora_inicio_especial: isChecked && !prev.hora_inicio_especial ? '08:00' : prev.hora_inicio_especial,
+                                            hora_fin_especial: isChecked && !prev.hora_fin_especial ? '14:00' : prev.hora_fin_especial
+                                        }))
+                                    }}
+                                />
+                                <span className="text-sm font-medium text-zinc-700 group-hover:text-indigo-600 transition-colors">Activar horario especial para Sábados</span>
+                            </label>
+
+                            {form.dias_especiales.includes('Sábado') && (
+                                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Entrada Sábado</label>
+                                        <input
+                                            type="time"
+                                            className="w-full text-black rounded-md border-indigo-200 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30"
+                                            value={form.hora_inicio_especial}
+                                            onChange={e => setForm({ ...form, hora_inicio_especial: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1">Salida Sábado</label>
+                                        <input
+                                            type="time"
+                                            className="w-full text-black rounded-md border-indigo-200 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30"
+                                            value={form.hora_fin_especial}
+                                            onChange={e => setForm({ ...form, hora_fin_especial: e.target.value })}
+                                        />
+                                    </div>
+                                    <p className="col-span-2 text-[10px] text-zinc-500 italic">El resto de la semana se usará el horario general de arriba.</p>
+                                </div>
+                            )}
+                        </div>
 
                         <button
                             type="submit"
@@ -249,6 +313,11 @@ export default function TurnosPage() {
                                                 <div className="flex items-center space-x-2 text-sm text-zinc-700 font-medium">
                                                     <Clock className="w-4 h-4 text-indigo-500" />
                                                     <span>{t.hora_inicio.slice(0, 5)} a {t.hora_fin.slice(0, 5)}</span>
+                                                    {t.dias_especiales?.length > 0 && (
+                                                        <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-bold ml-2">
+                                                            MIXTO
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">

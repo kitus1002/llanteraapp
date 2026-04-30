@@ -5,7 +5,7 @@ El script `10_Schema_Actualizacion_RLS_Completo.sql` fallaba en la inserción po
 Para respetar el código 100% original sin modificar su contenido, **hemos reorganizado el orden de ejecución** para que los parches estructurales (`ALTER TABLE`) se ejecuten **antes** del volcado de mantenimiento (`INSERT`).
 
 ### 📋 Instrucciones de Ejecución
-Ejecuta los archivos en el **SQL Editor de Supabase** siguiendo estrictamente la numeración del **01 al 33**.
+Ejecuta los archivos en el **SQL Editor de Supabase** siguiendo estrictamente la numeración del **01 al 34**.
 
 ---
 
@@ -36,7 +36,7 @@ Ejecuta los archivos en el **SQL Editor de Supabase** siguiendo estrictamente la
 17. **30_Fix_RLS_Puestos.sql**: Resuelve el error de permisos al crear o editar puestos (cat_puestos).
 18. **31_Fix_RLS_Causas_y_Unidades.sql**: Resuelve el error de permisos en causas de baja y unidades de trabajo.
 19. **32_Fix_RLS_Tipos_Varios.sql**: Resuelve el error de permisos en incidencias, solicitudes y roles.
-20. **33_Soporte_Horario_Mixto.sql**: Agrega soporte para tener un horario diferente los sábados.
+20. **34_Turnos_Flexibles_Mixtos.sql**: Agrega soporte para que un mismo turno tenga horas diferentes en días especiales (ej: Sábados).
 
 ---
-**Conclusión:** Ejecutando del 01 al 33 en este nuevo orden, las dependencias de tablas y columnas encajarán a la perfección.
+**Conclusión:** Ejecutando del 01 al 34 en este nuevo orden, las dependencias de tablas y columnas encajarán a la perfección.

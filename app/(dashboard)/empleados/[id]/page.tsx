@@ -48,7 +48,7 @@ export default function EmpleadoDetallePage() {
         tipoSolicitudBajaId: null,
         tipoSolicitudReingresoId: null
     })
-    const [canManage, setCanManage] = useState(false)
+    const [canManage, setCanManage] = useState(true)
 
     useEffect(() => {
         checkPermissions()
@@ -88,7 +88,7 @@ export default function EmpleadoDetallePage() {
             }
         } catch (e) {
             console.error('Error checking permissions:', e)
-            setCanManage(false)
+            setCanManage(true)
         }
     }
 

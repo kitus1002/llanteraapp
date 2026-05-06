@@ -213,15 +213,27 @@ export function calculateDailyStatus(
         return { status: 'Sin Rol', label: '–', color: 'bg-zinc-50 text-zinc-300', details: 'Configuración de rol incompleta' }
     }
 
-    const { dias_trabajo, dias_descanso, tipo_rol } = role.cat_tipos_rol
-    const cycleLength = (dias_trabajo || 0) + (dias_descanso || 0)
+    let isWorkDay = false;
+    let tipo_rol = role.cat_tipos_rol.tipo_rol;
 
-    if (cycleLength <= 0) {
-        return { status: 'Sin Rol', label: '–', color: 'bg-white', details: 'Ciclo de rol inválido' }
+    if (role.is_turno) {
+        const dayMap: Record<string, string> = {
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+        }
+        const diaSemana = dayMap[format(targetDate, 'EEEE')]
+        isWorkDay = role.cat_tipos_rol.aplica_dias?.includes(diaSemana) ?? false
+    } else {
+        const { dias_trabajo, dias_descanso } = role.cat_tipos_rol
+        const cycleLength = (dias_trabajo || 0) + (dias_descanso || 0)
+
+        if (cycleLength <= 0) {
+            return { status: 'Sin Rol', label: '–', color: 'bg-white', details: 'Ciclo de rol inválido' }
+        }
+
+        const dayInCycle = daysElapsed % cycleLength
+        isWorkDay = dayInCycle < (dias_trabajo || 0)
     }
-
-    const dayInCycle = daysElapsed % cycleLength
-    const isWorkDay = dayInCycle < (dias_trabajo || 0)
 
     // ── 3. Día de Descanso (Segun Rol) ──────────────────────────────────
     if (!isWorkDay) {

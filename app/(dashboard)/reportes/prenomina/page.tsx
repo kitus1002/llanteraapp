@@ -389,8 +389,9 @@ export default function PrenominaPage() {
                 if (!activeRole && emp.id_turno && turnosDic[emp.id_turno]) {
                     const tInfo = turnosDic[emp.id_turno]
                     activeRole = {
+                        is_turno: true,
                         fecha_inicio: startDate,
-                        cat_tipos_rol: { id_tipo_rol: tInfo.id, tipo_rol: tInfo.nombre, dias_trabajo: 6, dias_descanso: 1 }
+                        cat_tipos_rol: { id_tipo_rol: tInfo.id, tipo_rol: tInfo.nombre, aplica_dias: tInfo.aplica_dias, dias_trabajo: 6, dias_descanso: 1 }
                     }
                 }
 

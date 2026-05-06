@@ -114,11 +114,14 @@ export default function CalendarPage() {
                 if (!rMap[emp.id_empleado] && emp.id_turno && turnosDic[emp.id_turno]) {
                     const tInfo = turnosDic[emp.id_turno]
                     rMap[emp.id_empleado] = {
+                        is_turno: true,
+                        fecha_inicio: emp.fecha_ingreso || '2000-01-01',
                         cat_tipos_rol: {
                             id_tipo_rol: tInfo.id,
                             tipo_rol: tInfo.nombre,
                             dias_trabajo: 6,
                             dias_descanso: 1,
+                            aplica_dias: tInfo.aplica_dias,
                             hora_inicio: tInfo.hora_inicio,
                             hora_fin: tInfo.hora_fin,
                             hora_inicio_especial: tInfo.hora_inicio_especial,
@@ -128,6 +131,7 @@ export default function CalendarPage() {
                     }
                 }
             })
+
 
             setRolesMap(rMap)
 

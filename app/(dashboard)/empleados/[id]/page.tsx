@@ -993,8 +993,8 @@ export default function EmpleadoDetallePage() {
                                                 })()}
 
                                                 {!rolActivo && (
-                                                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
-                                                        ⚠️ Sin rol asignado — las faltas y descansos no se calcularán en el Calendario.
+                                                    <div className="mb-4 p-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-500 font-medium">
+                                                        ℹ️ Sin rol asignado. (Se evaluarán las asistencias registradas).
                                                     </div>
                                                 )}
 

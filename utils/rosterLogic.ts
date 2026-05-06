@@ -179,14 +179,15 @@ export function calculateDailyStatus(
 
     // ── 2. Manejo de Rol ─────────────────────────────────────────────────
     if (!role) {
-        const checadaEntrada = checadas?.find(c => c.fecha_local === targetStr && c.tipo_checada === 'ENTRADA')
-        if (checadaEntrada) {
-            const isRetardo = checadaEntrada.estatus_puntualidad === 'RETARDO'
+        const cualquierChecada = checadas?.find(c => c.fecha_local === targetStr)
+        if (cualquierChecada) {
+            const isRetardo = cualquierChecada.estatus_puntualidad === 'RETARDO'
+            const checkTime = cualquierChecada.timestamp_checada ? format(new Date(cualquierChecada.timestamp_checada), 'HH:mm') : '--:--'
             return {
                 status: isRetardo ? 'Retardo' : 'Asistencia',
                 label: isRetardo ? 'R' : 'A',
                 color: isRetardo ? 'bg-amber-500 text-white' : 'bg-green-500 text-white',
-                details: `${isRetardo ? 'Retardo' : 'Asistencia'} sin rol asignado`
+                details: `${isRetardo ? 'Retardo' : 'Asistencia'} sin rol asignado (${checkTime})`
             }
         }
         return { status: 'Sin Rol', label: '–', color: 'bg-zinc-50 text-zinc-300', details: 'Sin rol asignado' }
@@ -201,8 +202,8 @@ export function calculateDailyStatus(
 
     if (daysElapsed < 0) {
         // CORRECCIÓN: Si es antes del rol, NO es descanso. Es un día fuera de contrato/periodo.
-        const checadaExtra = checadas?.find(c => c.fecha_local === targetStr && c.tipo_checada === 'ENTRADA')
-        if (checadaExtra) {
+        const cualquierChecada = checadas?.find(c => c.fecha_local === targetStr)
+        if (cualquierChecada) {
             return { status: 'Asistencia', label: 'A', color: 'bg-green-400 text-white', details: 'Asistencia antes de inicio formal de rol' }
         }
         return { status: 'Sin Rol', label: '–', color: 'bg-zinc-50 text-zinc-300', details: 'Previo a inicio de rol' }
@@ -226,9 +227,10 @@ export function calculateDailyStatus(
     if (!isWorkDay) {
         const tieneEntrada = checadas?.some(c => c.fecha_local === targetStr && (c.tipo_checada === 'ENTRADA' || c.tipo_checada === 'COMIDA_REGRESO' || c.tipo_checada === 'REGRESO_PERMISO_PERSONAL' || c.tipo_checada === 'REGRESO_OPERACIONES'))
         const tieneSalida = checadas?.some(c => c.fecha_local === targetStr && (c.tipo_checada === 'SALIDA' || c.tipo_checada === 'COMIDA_SALIDA' || c.tipo_checada === 'PERMISO_PERSONAL' || c.tipo_checada === 'SALIDA_OPERACIONES'))
+        const tieneCualquierChecada = checadas?.some(c => c.fecha_local === targetStr)
 
-        if (tieneEntrada && tieneSalida) {
-            return { status: 'Asistencia', label: 'A+', color: 'bg-emerald-600 text-white', details: 'Día de descanso laborado' }
+        if (tieneCualquierChecada) {
+            return { status: 'Asistencia', label: 'A+', color: 'bg-emerald-600 text-white', details: 'Día de descanso con actividad registrada' }
         }
         return {
             status: 'Descanso',

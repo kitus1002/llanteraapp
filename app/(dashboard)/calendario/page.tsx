@@ -83,7 +83,7 @@ export default function CalendarPage() {
                 .select(`
                     id_empleado,
                     fecha_inicio,
-                    cat_tipos_rol(id_tipo_rol, tipo_rol, dias_trabajo, dias_descanso)
+                    cat_tipos_rol(*)
                 `)
                 .in('id_empleado', empIds)
                 .order('fecha_inicio', { ascending: false })
@@ -157,7 +157,7 @@ export default function CalendarPage() {
             // ── 5. Checadas del mes ─────────────────────────────────────────
             const { data: checadasRaw, error: checErr } = await supabase
                 .from('checadas')
-                .select('id_empleado, fecha_local, tipo_checada, estatus_puntualidad')
+                .select('id_empleado, fecha_local, tipo_checada, estatus_puntualidad, timestamp_checada')
                 .in('id_empleado', empIds)
                 .gte('fecha_local', startStr)
                 .lte('fecha_local', endStr)

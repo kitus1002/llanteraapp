@@ -31,6 +31,7 @@ export type Checada = {
     fecha_local: string           // 'YYYY-MM-DD'
     tipo_checada: string          // 'ENTRADA' | 'SALIDA' | etc.
     estatus_puntualidad: string   // 'PUNTUAL' | 'RETARDO' | 'SIN_TURNO'
+    timestamp_checada: string     // ISO String
 }
 
 export type DailyStatus = {
@@ -238,13 +239,17 @@ export function calculateDailyStatus(
     }
 
     // ── 4. Día de Trabajo → consultar checadas ───────────────────────────
-    const checadaEntrada = checadas?.find(c => c.fecha_local === targetStr && c.tipo_checada === 'ENTRADA')
+    const checadaEntrada = checadas?.find(c => 
+        c.fecha_local === targetStr && 
+        (c.tipo_checada === 'ENTRADA' || c.tipo_checada === 'COMIDA_REGRESO' || c.tipo_checada === 'REGRESO_PERMISO_PERSONAL' || c.tipo_checada === 'REGRESO_OPERACIONES')
+    )
 
     if (checadaEntrada) {
+        const checkTime = checadaEntrada.timestamp_checada ? format(new Date(checadaEntrada.timestamp_checada), 'HH:mm') : '--:--'
         if (checadaEntrada.estatus_puntualidad === 'RETARDO') {
-            return { status: 'Retardo', label: 'R', color: 'bg-amber-500 text-white', details: `Retardo: Entrada a las ${format(new Date(checadaEntrada.timestamp_checada), 'HH:mm')}` }
+            return { status: 'Retardo', label: 'R', color: 'bg-amber-500 text-white', details: `Retardo: Entrada a las ${checkTime}` }
         }
-        return { status: 'Asistencia', label: 'A', color: 'bg-green-500 text-white', details: `Asistencia puntual: ${format(new Date(checadaEntrada.timestamp_checada), 'HH:mm')}` }
+        return { status: 'Asistencia', label: 'A', color: 'bg-green-500 text-white', details: `Asistencia puntual: ${checkTime}` }
     }
 
     // ── 5. Sin checada: Estado de ausencia ───────────────────────────────

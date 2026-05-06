@@ -252,6 +252,18 @@ export function calculateDailyStatus(
         return { status: 'Asistencia', label: 'A', color: 'bg-green-500 text-white', details: `Asistencia puntual: ${checkTime}` }
     }
 
+    // FALLBACK: Si no hay ENTRADA pero hay CUALQUIER otra checada (salida, comida, etc)
+    const cualquierChecada = checadas?.find(c => c.fecha_local === targetStr)
+    if (cualquierChecada) {
+        const checkTime = cualquierChecada.timestamp_checada ? format(new Date(cualquierChecada.timestamp_checada), 'HH:mm') : '--:--'
+        return { 
+            status: 'Asistencia', 
+            label: 'A', 
+            color: 'bg-emerald-500 text-white', 
+            details: `Asistencia registrada (Tipo: ${cualquierChecada.tipo_checada.replace('_', ' ')} a las ${checkTime})` 
+        }
+    }
+
     // ── 5. Sin checada: Estado de ausencia ───────────────────────────────
     if (isPast) {
         return { status: 'Falta', label: 'F', color: 'bg-red-600 text-white', details: 'Inasistencia (sin registro)' }
